@@ -1,28 +1,11 @@
-// This lets us use input and output like std::cout and std::cerr.
 #include <iostream>
-
-// This gives us functions like std::memset.
 #include <cstring>
-
-// This gives us std::string.
 #include <string>
-
-// This lets us work with folders and files using C++17.
 #include <filesystem>
-
-// This lets us create and read files.
 #include <fstream>
-
-// This lets us read the whole file into a string.
 #include <sstream>
-
-// This gives us close() and read() for sockets.
 #include <unistd.h>
-
-// This gives us sockaddr_in and network address tools.
 #include <arpa/inet.h>
-
-// This gives us socket(), bind(), listen(), accept(), and send().
 #include <sys/socket.h>
 
 // This is the folder where files will be stored.
@@ -50,16 +33,13 @@ void handleList(int client_fd) {
     if (!std::filesystem::exists(STORAGE_FOLDER)) {
         reply = "ERROR: storage folder not found";
     } else {
-        // Go through every item in the storage folder.
         for (const auto& entry : std::filesystem::directory_iterator(STORAGE_FOLDER)) {
-            // Only include regular files.
             if (entry.is_regular_file()) {
                 reply += entry.path().filename().string();
                 reply += "\n";
             }
         }
 
-        // If no files were found, say the folder is empty.
         if (reply.empty()) {
             reply = "Storage folder is empty";
         }
@@ -72,10 +52,7 @@ void handleList(int client_fd) {
 
 // This handles the UPLOAD command.
 void handleUpload(int client_fd, const std::string& request) {
-    // Find the separator after UPLOAD.
     size_t first_bar = request.find('|');
-
-    // Find the separator after the filename.
     size_t second_bar = request.find('|', first_bar + 1);
 
     // Make sure both separators exist.
@@ -84,19 +61,10 @@ void handleUpload(int client_fd, const std::string& request) {
         return;
     }
 
-    // Extract the filename.
     std::string filename = request.substr(first_bar + 1, second_bar - first_bar - 1);
-
-    // Extract the file content.
     std::string file_content = request.substr(second_bar + 1);
-
-    // Make sure the storage folder exists.
     std::filesystem::create_directories(STORAGE_FOLDER);
-
-    // Build the full file path.
     std::string full_path = STORAGE_FOLDER + "/" + filename;
-
-    // Open the file for writing.
     std::ofstream out_file(full_path);
 
     if (!out_file) {
@@ -115,7 +83,6 @@ void handleUpload(int client_fd, const std::string& request) {
 
 // This handles the DOWNLOAD command.
 void handleDownload(int client_fd, const std::string& request) {
-    // Find the separator.
     size_t bar = request.find('|');
 
     // Make sure the separator exists.
@@ -124,10 +91,8 @@ void handleDownload(int client_fd, const std::string& request) {
         return;
     }
 
-    // Extract the filename.
     std::string filename = request.substr(bar + 1);
 
-    // Build the full path.
     std::string full_path = STORAGE_FOLDER + "/" + filename;
 
     // Check if the file exists.
@@ -136,7 +101,6 @@ void handleDownload(int client_fd, const std::string& request) {
         return;
     }
 
-    // Open the file.
     std::ifstream in_file(full_path);
 
     if (!in_file) {
@@ -156,19 +120,14 @@ void handleDownload(int client_fd, const std::string& request) {
 
 // This handles the DELETE command.
 void handleDelete(int client_fd, const std::string& request) {
-    // Find the separator.
     size_t bar = request.find('|');
 
-    // Make sure the separator exists.
     if (bar == std::string::npos) {
         sendResponse(client_fd, "ERROR: Invalid delete format");
         return;
     }
 
-    // Extract the filename.
     std::string filename = request.substr(bar + 1);
-
-    // Build the full path.
     std::string full_path = STORAGE_FOLDER + "/" + filename;
 
     // Check if the file exists.
