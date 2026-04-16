@@ -1,0 +1,4 @@
+/workspaces/Distributed-Cloud-File-Storage-System/build/CMakeFiles/server.dir
+/workspaces/Distributed-Cloud-File-Storage-System/build/CMakeFiles/client.dir
+/workspaces/Distributed-Cloud-File-Storage-System/build/CMakeFiles/edit_cache.dir
+/workspaces/Distributed-Cloud-File-Storage-System/build/CMakeFiles/rebuild_cache.dir
