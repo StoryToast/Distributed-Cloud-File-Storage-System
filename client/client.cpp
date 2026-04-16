@@ -1,8 +1,17 @@
-// This lets us use std::cout and std::cerr.
+// This lets us use std::cout, std::cerr, and std::getline.
 #include <iostream>
 
-// This gives us functions like std::memset and std::strlen.
+// This gives us functions like std::memset.
 #include <cstring>
+
+// This gives us std::string.
+#include <string>
+
+// This gives us std::transform.
+#include <algorithm>
+
+// This gives us std::toupper.
+#include <cctype>
 
 // This gives us close() and read().
 #include <unistd.h>
@@ -13,10 +22,48 @@
 // This gives us socket(), connect(), and send().
 #include <sys/socket.h>
 
+
+// This prints the command menu.
+void printMenu() {
+    std::cout << "\n=============================\n";
+    std::cout << "Connected to server.\n";
+    std::cout << "Commands you can use:\n";
+    std::cout << "  PING\n";
+    std::cout << "  LIST\n";
+    std::cout << "  UPLOAD|filename|content\n";
+    std::cout << "  DOWNLOAD|filename\n";
+    std::cout << "  DELETE|filename\n";
+    std::cout << "  EXIT\n";
+    std::cout << "=============================\n";
+}
+
+
+// This changes only the command part to uppercase.
+// Example:
+//   ping -> PING
+//   list -> LIST
+//   upload|a.txt|hello -> UPLOAD|a.txt|hello
+std::string normalizeCommand(const std::string& input) {
+    std::string result = input;
+
+    // Find the first | if there is one.
+    size_t bar = result.find('|');
+
+    // Only uppercase the command part.
+    if (bar == std::string::npos) {
+        std::transform(result.begin(), result.end(), result.begin(),
+            [](unsigned char c) { return std::toupper(c); });
+    } else {
+        std::transform(result.begin(), result.begin() + bar, result.begin(),
+            [](unsigned char c) { return std::toupper(c); });
+    }
+
+    return result;
+}
+
+
 int main() {
     // Create the client socket.
-    // AF_INET = IPv4
-    // SOCK_STREAM = TCP
     int client_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     // Check if socket creation failed.
@@ -25,50 +72,78 @@ int main() {
         return 1;
     }
 
-    // Create a structure to store the server address we want to connect to.
+    // Create a structure to store the server address.
     sockaddr_in server_address;
 
-    // Clear it first so all fields start at zero.
+    // Clear the structure first.
     std::memset(&server_address, 0, sizeof(server_address));
 
-    // Set IPv4.
+    // Use IPv4.
     server_address.sin_family = AF_INET;
 
-    // Set the port number to 8080.
+    // Use port 8080.
     server_address.sin_port = htons(8080);
 
-    // Convert the IP address string "127.0.0.1" into binary form.
-    // 127.0.0.1 means this same machine.
+    // Convert 127.0.0.1 into binary form.
     if (inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr) <= 0) {
         std::cerr << "Invalid address" << std::endl;
         close(client_fd);
         return 1;
     }
 
-    // Connect to the server using the address info above.
+    // Connect to the server.
     if (connect(client_fd, (sockaddr*)&server_address, sizeof(server_address)) < 0) {
         std::cerr << "Connection failed" << std::endl;
         close(client_fd);
         return 1;
     }
 
-    // This is the message the client will send.
-    const char* message = "PING";
+    // Show the menu once at startup.
+    printMenu();
 
-    // Send the message to the server.
-    send(client_fd, message, std::strlen(message), 0);
+    // Keep asking for commands until the user exits.
+    while (true) {
+        std::string input;
+        std::cout << "\nEnter a command: ";
+        std::getline(std::cin, input);
 
-    std::cout << "Client sent: PING" << std::endl;
+        // Ignore empty input.
+        if (input.empty()) {
+            std::cout << "Please enter a command.\n";
+            printMenu();
+            continue;
+        }
 
-    // Create a buffer to store the server's reply.
-    char buffer[1024] = {0};
+        // Normalize the command part only.
+        std::string message = normalizeCommand(input);
 
-    // Read the reply from the server.
-    int bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
+        // If user types exit in any case, stop the client.
+        if (message == "EXIT") {
+            std::cout << "Closing client.\n";
+            break;
+        }
 
-    // If we got data back, print it.
-    if (bytes_received > 0) {
-        std::cout << "Client received: " << buffer << std::endl;
+        // Send the command to the server.
+        send(client_fd, message.c_str(), message.size(), 0);
+
+        // Create a buffer to store the server response.
+        char buffer[4096] = {0};
+
+        // Read the server response.
+        int bytes_received = read(client_fd, buffer, sizeof(buffer) - 1);
+
+        // Show what was sent and what came back.
+        std::cout << "\nClient sent: " << message << std::endl;
+
+        if (bytes_received > 0) {
+            std::cout << "Client received:\n" << buffer << std::endl;
+        } else {
+            std::cout << "Server disconnected." << std::endl;
+            break;
+        }
+
+        // Print the menu again after each command.
+        printMenu();
     }
 
     // Close the client socket.
